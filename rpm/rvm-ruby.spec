@@ -6,7 +6,7 @@
 
 Name: rvm-ruby
 Summary: Ruby Version Manager
-Version: 2  # Version will be appended the commit date
+Version: 3  # Version will be appended the commit date
 Release: 1.el6_CS
 License: ASL 2.0
 URL: http://rvm.beginrescueend.com/
@@ -42,7 +42,16 @@ ensure correct permissions for the shared RVM content.
 RVM is activated for all logins by default. To disable remove
 %{_sysconfdir}/profile.d/rvm.sh and source rvm from each users shell.
 
-No rubies included
+Rubies in this package:
+ruby-1.9.3-p0
+  bundler
+  bluepill
+  whenever
+
+ruby-1.9.2-p290
+  bundler
+  bluepill
+  whenever
 
 
 %prep
@@ -121,8 +130,23 @@ export rvm_man_path="%{buildroot}%{_mandir}"
 source ${rvm_path}/scripts/rvm
 gemi='gem install --no-ri --no-rdoc'
 
-#ruby_tag=ruby-1.9.3-p0
+ruby_tag=ruby-1.9.3-p0
+rvm install $ruby_tag
+rvm use $ruby_tag
+$gemi bundler
+$gemi whenever
+$gemi bluepill
+
+ruby_tag=ruby-1.9.2-p290
+rvm install $ruby_tag
+rvm use $ruby_tag
+$gemi bundler
+$gemi whenever
+$gemi bluepill
+
+#ruby_tag=ruby-1.8.7-p352
 #rvm install $ruby_tag
+#rvm use $ruby_tag
 )
 
 export br=%{buildroot}
@@ -204,10 +228,16 @@ exit 0
 %{_mandir}/man1/*
 
 %changelog
-* Fri Mar 30 2012 Alexandre Fouche - 2.xxx
+* Fri Mar 30 2012 Alexandre Fouche - 3.xxx
+Add some rubies and gems to compile:
+- 1.9.2-p290 + bundler, bluepill, whenever
+- 1.9.3-p0 + bundler, bluepill, whenever
+
+* Thu Mar 29 2012 Alexandre Fouche - 2.xxx
+- Adapt <https://github.com/mdkent/rvm-rpm/blob/master/SPECS/rvm-ruby.spec> to make it work from RVM git source directly
 - Strip binaries, libraries, ...
 
-* Thu Mar 29 2012 Alexandre Fouche
+* Thu Mar 29 2012 Alexandre Fouche - 1.xxx
 - Adapt <https://github.com/mdkent/rvm-rpm/blob/master/SPECS/rvm-ruby.spec> to make it work from RVM git source directly
 
 * Tue Dec 13 2011 Matthew Kent <mkent@magoazul.com> - 1.10.0-2
