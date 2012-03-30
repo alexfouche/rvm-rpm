@@ -16,6 +16,7 @@ commitdate=`git log -1 --format="%ct"`
 version=`grep -P '^Version:\s+' rpm/$specfile |awk '{print $2}'`.$commitdate
 #release=`grep -P '^Release:\s+' rpm/$specfile |awk '{print $2}'`
 
+rm -rf rpmbuild
 mkdir -p rpmbuild/{BUILD,RPMS,SOURCES/$name-$version,SPECS,SRPMS,tmp}
 cp -a rpm/$specfile rpmbuild/SPECS
 sed -i "s/^[\t ]*Version:.*\$/Version: ${version}/" rpmbuild/SPECS/$specfile
