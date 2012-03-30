@@ -6,7 +6,7 @@
 
 Name: rvm-ruby
 Summary: Ruby Version Manager
-Version: 1  # Version will be appended the commit date
+Version: 2  # Version will be appended the commit date
 Release: 1.el6_CS
 License: ASL 2.0
 URL: http://rvm.beginrescueend.com/
@@ -14,7 +14,7 @@ Group: Applications/System
 
 Source: %{name}-%{version}.tar
 
-BuildArch: noarch
+#BuildArch: noarch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
 
 BuildRequires: bash curl git
@@ -41,6 +41,8 @@ ensure correct permissions for the shared RVM content.
 
 RVM is activated for all logins by default. To disable remove
 %{_sysconfdir}/profile.d/rvm.sh and source rvm from each users shell.
+
+No rubies included
 
 
 %prep
@@ -106,6 +108,86 @@ chmod 755 %{buildroot}%{_sysconfdir}/profile.d/rvm.sh
 mv %{buildroot}%{_bindir}/rake %{buildroot}%{_bindir}/rvm-rake
 
 
+# At this point, install of RVM is finished
+# Now install some rubies
+
+# Run this in a subshell so the rvm loading does not infect our current shell.
+(
+export rvm_ignore_rvmrc=1
+export rvm_user_install_flag=0
+export rvm_path="%{buildroot}%{rvm_dir}"
+export rvm_bin_path="%{buildroot}%{_bindir}"
+export rvm_man_path="%{buildroot}%{_mandir}"
+source ${rvm_path}/scripts/rvm
+gemi='gem install --no-ri --no-rdoc'
+
+#ruby_tag=ruby-1.9.3-p0
+#rvm install $ruby_tag
+)
+
+export br=%{buildroot}
+
+# Remove sources
+rm -rf $br/usr/lib/rvm/src
+
+# Strip binaries
+#find $br -type f -print0 |xargs -0 file --no-dereference --no-pad |grep 'not stripped' |cut -f1 -d: |xargs -r strip
+
+# Strip and Fix bad paths in generated files
+# That is not optimized, but that is not supposed to be done often
+for f in `find $br -type f -print0 |xargs -0 file --no-dereference --no-pad |grep ': ELF' |cut -f1 -d:`; do
+  strip $f
+  grep "$br" $f || continue
+  line=`chrpath -l $f` || continue
+  echo $line |grep "$br" || continue
+  chrpath -r `echo $line |cut -f2 -d= |sed "s,$br,,"` $f
+done
+
+# Replace bad paths in text files
+find $br -type f \( -name \*.log -o -name \*.la \) -print0 |xargs -0 -r sed -i "s,$br,,g"
+find $br -type f -print0 |xargs -0 file --no-dereference --no-pad |grep ': .* text' |cut -f1 -d: |xargs -r sed -i "s,$br,,g"
+
+# Strip object files in ar archives from bad path strings
+for f in `find $br -type f -name \*.a`; do
+  td=`mktemp -d`
+  pushd $td
+  ar x $f
+
+  for g in `find . -type f -print0 |xargs -0 file --no-dereference --no-pad |grep ': ELF' |cut -f1 -d:`; do
+    strip $g
+    grep "$br" $g || continue
+
+    # Replace the bad path with the good one, padded by nulls
+    ruby -p -i -e '
+      $_.gsub!(/#{ENV["br"]}(.*?)\0/) do |s|
+      $1 + ( "\0" * ENV["br"].size ) + "\0"
+      end
+    ' $g
+  done
+
+  ar r $f *
+  popd
+  rm -rf $td
+done
+
+# Replace paths in libraries strings
+for f in `find $br/usr/lib/rvm/rubies -type f -print0 |xargs -0 file --no-dereference --no-pad |grep ': ELF' |cut -f1 -d:`; do
+  grep "$br" $f || continue
+
+  # Replace the bad path with the good one, padded by nulls
+  ruby -p -i -e '
+    $_.gsub!(/#{ENV["br"]}(.*?)\0/) do |s|
+    $1 + ( "\0" * ENV["br"].size ) + "\0"
+    end
+  ' $f
+done
+
+# Fix symlinks with bad path
+for f in `find $br -type l |grep "$br"`; do
+    ln -sf `echo $f |sed "s,$br,,"` $f
+done
+
+
 %clean
 rm -rf %{buildroot}
 
@@ -122,6 +204,8 @@ exit 0
 %{_mandir}/man1/*
 
 %changelog
+* Fri Mar 30 2012 Alexandre Fouche - 2.xxx
+- Strip binaries, libraries, ...
 
 * Thu Mar 29 2012 Alexandre Fouche
 - Adapt <https://github.com/mdkent/rvm-rpm/blob/master/SPECS/rvm-ruby.spec> to make it work from RVM git source directly
