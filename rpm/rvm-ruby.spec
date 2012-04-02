@@ -208,7 +208,7 @@ done
 
 # Fix symlinks with bad path
 for f in `find $br -type l |grep "$br"`; do
-    ln -sf `echo $f |sed "s,$br,,"` $f
+    ln -sf `readlink -f $f |sed "s,$br,,"` $f
 done
 
 
